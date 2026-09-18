@@ -424,3 +424,8 @@ portfolio = function () {
    Esta es la última capa: cuando termina, la aplicación se pinta entera una
    vez con todo ya definido. */
 route();
+
+// Un diálogo pertenece a la pantalla que lo abrió; nunca viaja a otra ruta.
+window.addEventListener("hashchange", () => {
+  if ($("#dialog").open) closeModal();
+});

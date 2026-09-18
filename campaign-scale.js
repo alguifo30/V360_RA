@@ -197,7 +197,7 @@ function allRows9() {
     );
 }
 function contacted9(t) {
-  return t.sold || !["No contactado", "Pendiente", "No contactado / servicio"].includes(t.status);
+  return Boolean(t.tipifiedAt) || t.sold || !["No contactado", "Pendiente", "No contactado / servicio"].includes(t.status);
 }
 function rows9() {
   return allRows9()
@@ -257,65 +257,19 @@ function estado9(texto) {
   );
 }
 
-// Un <tbody> por cliente: la agrupación es semántica, no solo visual, así que
-// un lector de pantalla también oye "estas cuatro campañas son de esta
-// persona" en vez de repetir el nombre en cada fila.
+// Una fila completa por asociación cliente–campaña.
 function agrupadoPorCliente9(filas) {
-  const grupos = [];
-  for (const fila of filas) {
-    const ultimo = grupos[grupos.length - 1];
-    if (ultimo && ultimo.c.id === fila.c.id) ultimo.items.push(fila);
-    else grupos.push({ c: fila.c, items: [fila] });
-  }
-  return grupos
-    .map(
-      (g) =>
-        '<tbody class="grupo-cliente">' +
-        '<tr class="fila-cliente"><th scope="rowgroup" colspan="6">' +
-        '<a href="#cliente/' +
-        g.c.id +
-        '">' +
-        esc(g.c.name) +
-        '</a><small class="dni">DNI ' +
-        g.c.dni +
-        "</small>" +
-        (g.items.length > 1
-          ? '<span class="cuenta-campanas num">' + g.items.length + " campañas</span>"
-          : "") +
-        "</th></tr>" +
-        g.items
-          .map(({ c, t, m }) => {
-            const o = offer6(t),
-              r = rate9(t),
-              // La tasa vigente es la que tiene valor: TREA en depósitos,
-              // TEA en colocaciones. La otra no se muestra vacía.
-              tasa = r[2] === "No aplica" ? "—" : r[2],
-              mensual = r[0] !== "No aplica" && r[0] !== "No disponible" ? r[0] : null;
-            return (
-              '<tr><td class="celda-vacia"></td><td class="celda-campana">' +
-              esc(t.name) +
-              (m.kind === "Venta" ? "" : "<small>" + esc(m.kind) + "</small>") +
-              '</td><td class="num-col" data-col="Monto"><span class="num">' +
-              (t.kind === "Venta" && o.amount != null ? money(o.amount) : "—") +
-              '</span></td><td class="num-col" data-col="Tasa"><span class="num">' +
-              tasa +
-              "</span>" +
-              (mensual ? '<small class="num">' + mensual + " TEM</small>" : "") +
-              '</td><td data-col="Respuesta">' +
-              estado9(t.sold ? "Venta confirmada" : t.status) +
-              '</td><td class="rowaction"><button class="tipify9" ' +
-              (!m.active ? 'disabled title="Campaña finalizada"' : "") +
-              ' onclick="startTipify9(' +
-              c.id +
-              ",'" +
-              t.id +
-              "')\">Tipificar</button></td></tr>"
-            );
-          })
-          .join("") +
-        "</tbody>",
-    )
-    .join("");
+  return '<tbody>' + filas.map(({ c, t, m }) => {
+    const o = offer6(t), r = rate9(t);
+    const mensual = r[0] !== "No aplica" && r[0] !== "No disponible" ? r[0] : null;
+    return `<tr>
+      <td data-col="Cliente"><a href="#cliente/${c.id}"><b>${esc(c.name)}</b></a><small class="dni">DNI ${esc(c.dni)}</small></td>
+      <td class="celda-campana" data-col="Campaña">${esc(t.name)}${m.kind === "Venta" ? "" : "<small>" + esc(m.kind) + "</small>"}</td>
+      <td class="num-col" data-col="Monto"><span class="num">${t.kind === "Venta" && o.amount != null ? money(o.amount) : "—"}</span></td>
+      <td class="num-col" data-col="Tasa"><span class="num">${r[2] === "No aplica" ? "—" : r[2]}</span>${mensual ? '<small class="num">' + mensual + ' TEM</small>' : ''}</td>
+      <td class="rowaction"><button class="tipify9" ${!m.active ? 'disabled title="Campaña finalizada"' : ''} onclick="startTipify9(${c.id},'${t.id}')">Tipificar</button></td>
+    </tr>`;
+  }).join('') + '</tbody>';
 }
 
 function table9() {
@@ -358,27 +312,16 @@ function table9() {
         );
       })
       .join("") +
-    // La tabla es de asociaciones cliente–campaña, así que el mismo cliente
-    // aparecía en cinco filas seguidas con su DNI repetido. Agrupada, el
-    // nombre se dice una vez y debajo van sus campañas: se lee "quién tiene
-    // qué" en lugar de leer el mismo nombre cinco veces.
-    //
-    // TEM y TCEA eran dos columnas enteras diciendo "No aplica" y "Por
-    // consultar" en casi todas las filas. Una columna cuyo valor es idéntico
-    // en todas las filas gasta ancho sin distinguir nada: la tasa vigente
-    // pasa a una sola columna y el resto baja a segunda línea solo cuando
-    // tiene un valor real.
     '</div><div class="table-wrap" tabindex="0" role="region" aria-label="Clientes de campaña">' +
     '<table class="tabla-asociaciones"><thead><tr>' +
     '<th scope=col><button onclick="sortColumn9(\'name\')">Cliente<span aria-hidden="true">↕</span></button></th>' +
     "<th scope=col>Campaña · producto</th>" +
     '<th scope=col class="num-col"><button onclick="sortColumn9(\'amount\')">Monto<span aria-hidden="true">↕</span></button></th>' +
     '<th scope=col class="num-col">Tasa</th>' +
-    "<th scope=col>Respuesta</th>" +
     '<th scope=col><span class="sr">Acciones</span></th>' +
     "</tr></thead>" +
     agrupadoPorCliente9(rows.slice((listPage9 - 1) * 15, listPage9 * 15)) +
-    "</tbody></table></div>" +
+    "</table></div>" +
     (rows.length ? "" : '<div class="empty">No hay clientes para estos filtros.</div>') +
     '<div class="pagination pager"><button ' +
     (listPage9 === 1 ? "disabled" : "") +
@@ -427,7 +370,7 @@ campaignView = function () {
     new Set(rows.map((r) => r.c.id)).size +
     "</b> clientes · <b class=\"num\">" +
     rows.filter((r) => !contacted9(r.t)).length +
-    "</b> sin contactar</p>" +
+    "</b> por gestionar</p>" +
     "</section>" +
     (prioritizedOnly
       ? '<div class="notice">Solo campañas priorizadas <button onclick="prioritizedOnly=false;render()">Ver todas</button></div>'
@@ -640,11 +583,12 @@ function commitTipify9(d) {
     t.kind === "Venta"
       ? ["Acepta campaña", "Rechaza campaña", "Lo va a pensar", "No contactado"]
       : ["Resuelto", "En proceso", "No contactado / servicio"];
-  if (!allowed.includes(w.result) || !d.reason || !d.text?.trim())
+  if (!allowed.includes(w.result) || (needsReasonUI(w.result) && !d.reason))
     throw Error("Completa el motivo y los acuerdos.");
-  if (["Lo va a pensar", "En proceso"].includes(w.result) && !d.next)
+  if (w.result === "Lo va a pensar" && !d.next)
     throw Error("Programa el próximo contacto.");
   if (d.next && d.next < todayKey) throw Error("Selecciona una fecha desde hoy.");
+  t.tipifiedAt = new Date().toISOString();
   t.status = w.result;
   t.next = d.next || "";
   t.incoming = false;
@@ -662,7 +606,7 @@ function commitTipify9(d) {
   c.notes.unshift({
     result: w.result,
     channel: d.channel,
-    text: t.name + " · " + d.reason + ": " + d.text,
+    text: t.name + " · " + w.result + (d.reason ? " · " + d.reason : "") + (d.text?.trim() ? ": " + d.text.trim() : ""),
     next: d.next || "",
     time: new Date().toLocaleString("es-PE"),
   });
@@ -713,3 +657,4 @@ route = function () {
 window.removeEventListener("hashchange", routeBase9);
 window.addEventListener("hashchange", route);
 route();
+

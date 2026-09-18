@@ -2925,3 +2925,41 @@ button.paso12-caja:hover {
     width: 100%;
   }
 }
+
+/* Correcciones de modales y bandeja de campañas. */
+dialog:not([open]) { display: none !important; }
+dialog[open] {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  max-height: calc(100dvh - 32px);
+}
+dialog[open] #modal { max-height: calc(100dvh - 32px); }
+.contact-tabs9 {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--borde-sutil);
+  mask-image: none;
+  -webkit-mask-image: none;
+  overflow: visible;
+  margin-bottom: 24px;
+}
+.contact-tabs9 button { justify-content: center; padding: 12px 8px; }
+.contact-tabs9 button b { padding: 2px 7px; border-radius: 6px; background: var(--sup-tarjeta); }
+.contact-tabs9 button.active { box-shadow: inset 0 -3px var(--green); }
+.tabla-asociaciones { min-width: 760px; width: 100%; }
+.tabla-asociaciones td:first-child { min-width: 170px; }
+.tabla-asociaciones tbody td { border-bottom: 1px solid var(--borde-sutil); }
+.tabla-asociaciones tbody tr:hover { background: var(--sup-hundida); }
+@media (max-width: 760px) {
+  .contact-tabs9 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tabla-asociaciones { display: table; }
+  .tabla-asociaciones thead { display: table-header-group; }
+  .tabla-asociaciones tbody { display: table-row-group; }
+  .tabla-asociaciones tr, .tabla-asociaciones tbody tr:not(.fila-cliente) { display: table-row; }
+  .tabla-asociaciones tbody td { display: table-cell; padding: 14px 12px; text-align: left; }
+  .tabla-asociaciones tbody td[data-col]::before { display: none; }
+  .tabla-asociaciones .num-col small { text-align: inherit; }
+}
