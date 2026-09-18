@@ -1,0 +1,2927 @@
+/* ===========================================================================
+   Conecta · Renta Alta — sistema de diseño
+   ---------------------------------------------------------------------------
+   Una auditoría de la hoja anterior encontró 40 valores de espaciado (28 fuera
+   de cualquier rejilla), 18 radios, 17 sombras y 26 tamaños de texto. Eso no
+   es un estilo: es ruido. Lo que hace que una interfaz se sienta cuidada no es
+   un color ni una sombra bonita, es que el ritmo sea sistemático — que dos
+   cosas separadas por lo mismo lo estén exactamente por lo mismo.
+   Esta capa fija ese sistema; el resto del archivo lo aplica.
+   =========================================================================== */
+
+:root {
+  /* --- Espaciado: rejilla de 4px, sin excepciones -------------------------
+     Un solo múltiplo de base. Si algo "necesita" 13px, necesita 12 o 16.   */
+  --e-0: 0;
+  --e-1: 4px;
+  --e-2: 8px;
+  --e-3: 12px;
+  --e-4: 16px;
+  --e-5: 20px;
+  --e-6: 24px;
+  --e-7: 28px;
+  --e-8: 32px;
+  --e-10: 40px;
+  --e-12: 48px;
+  --e-16: 64px;
+
+  /* --- Radio: cinco pasos, uno por tamaño de objeto ----------------------- */
+  --r-xs: 4px;   /* píldoras de estado, chips diminutos */
+  --r-sm: 8px;   /* controles: botones, campos, segmentos */
+  --r-md: 12px;  /* tarjetas internas, filas en tarjeta */
+  --r-lg: 16px;  /* tarjetas principales, paneles */
+  --r-full: 999px;
+
+  /* --- Superficies por tono, no por borde ---------------------------------
+     Un borde por cada caja produce una reja. Separar por tono deja respirar
+     y hace que la jerarquía la lleve la luz, no las líneas.                */
+  --sup-fondo: #f1f4f4;      /* el lienzo */
+  --sup-tarjeta: #ffffff;    /* lo que descansa sobre el lienzo */
+  --sup-hundida: #e8edec;    /* pistas de control, campos */
+  --sup-suave: #f7f9f9;      /* cabeceras de tabla, filas alternas */
+  --borde-sutil: #e4e9e9;    /* solo donde hace falta separar, no encuadrar */
+  --borde-fuerte: #cfd8d8;   /* bordes de control */
+
+  /* --- Elevación: cuatro niveles y ni uno más -----------------------------
+     Sombras muy contenidas: su trabajo es decir "esto está por encima de
+     aquello", no dibujar una nube.                                         */
+  --nivel-1: 0 1px 2px rgba(16, 42, 48, 0.05);
+  --nivel-2: 0 1px 3px rgba(16, 42, 48, 0.09), 0 4px 12px rgba(16, 42, 48, 0.05);
+  --nivel-3: 0 8px 28px rgba(16, 42, 48, 0.11);
+  --nivel-4: 0 24px 60px rgba(16, 42, 48, 0.2);
+
+  /* --- Movimiento ---------------------------------------------------------
+     Una curva con salida decidida y frenada larga: el movimiento se siente
+     físico en vez de mecánico. Dos duraciones, no doce.                    */
+  --mov-rapido: 130ms;
+  --mov-medio: 220ms;
+  --curva: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* --- Aplicación del sistema a lo que ya existe --------------------------- */
+
+body {
+  background: var(--sup-fondo);
+}
+
+/* Tarjetas: tono y una sombra mínima en lugar de un borde por caja. */
+.card,
+section.card {
+  background: var(--sup-tarjeta);
+  border: 0;
+  border-radius: var(--r-lg);
+  box-shadow: var(--nivel-1);
+  padding: var(--e-6);
+}
+
+/* Controles: un solo radio, un solo borde, una sola transición. */
+button,
+.btn,
+select,
+input:not([type="checkbox"]):not([type="radio"]),
+textarea {
+  border-radius: var(--r-sm);
+  transition:
+    background var(--mov-rapido) var(--curva),
+    border-color var(--mov-rapido) var(--curva),
+    box-shadow var(--mov-rapido) var(--curva);
+}
+
+input:not([type="checkbox"]):not([type="radio"]),
+textarea,
+select {
+  border: 1px solid var(--borde-fuerte);
+  background: var(--sup-tarjeta);
+  padding: var(--e-3) var(--e-4);
+}
+input:not([type="checkbox"]):not([type="radio"]):focus,
+textarea:focus,
+select:focus {
+  border-color: var(--green);
+}
+
+/* Tablas: la cabecera se separa por tono; las filas, por una línea sutil. */
+table th {
+  background: var(--sup-suave);
+  border-bottom: 1px solid var(--borde-sutil);
+}
+table td {
+  border-bottom: 1px solid var(--borde-sutil);
+}
+tbody tr:last-child td {
+  border-bottom: 0;
+}
+tbody tr {
+  transition: background var(--mov-rapido) var(--curva);
+}
+tbody tr:hover {
+  background: var(--sup-suave);
+}
+
+/* Diálogo: el nivel más alto de la escala, y nada más lo usa. */
+dialog {
+  border: 0;
+  border-radius: var(--r-lg);
+  box-shadow: var(--nivel-4);
+}
+dialog::backdrop {
+  background: rgba(13, 43, 51, 0.32);
+  backdrop-filter: blur(3px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ===========================================================================
+   CONTROL SEGMENTADO — elegir una de varias pilas de trabajo
+   ---------------------------------------------------------------------------
+   Antes eran cinco cajas sueltas encima de la tarjeta: a 1440px ocupaban 602px
+   de una fila de 1388 —786px vacíos—, con anchos irregulares de ±26px, y el
+   número era 2.1× más grande que la etiqueta, que es lo que en realidad se
+   pulsa. Y estaban despegadas del panel que filtran.
+
+   Cuatro principios de Norman, aplicados donde se puedan señalar:
+
+   · MAPEO — el control vive DENTRO de la tarjeta que filtra. La relación
+     entre mando y efecto es física, no hay que deducirla.
+   · SIGNIFICANTES — una pista hundida con una píldora elevada encima dice
+     "elige una de estas" sin que nadie tenga que rotularlo.
+   · RESTRICCIONES — la forma impide leerlo como cinco botones sueltos: es
+     visiblemente un grupo de elección única.
+   · RETROALIMENTACIÓN — el conteo de resultados está al lado del control y
+     cambia al pulsar. La consecuencia se ve donde se produjo la causa.
+
+   Y la lectura que ordena la jerarquía: se elige por NOMBRE y se compara por
+   CANTIDAD. Así que la etiqueta manda y la cifra acompaña — al revés de como
+   estaba.
+   =========================================================================== */
+
+@media (max-width: 860px) {
+  .panel-cab {
+    padding: var(--e-3) var(--e-4);
+    gap: var(--e-3);
+  }
+  /* En pantalla estrecha la pista se desplaza en horizontal antes que romper
+     en dos filas: un control partido deja de leerse como un control. El
+     degradado del borde avisa de que hay más. */
+  .vistas {
+    display: flex;
+    overflow-x: auto;
+    scrollbar-width: none;
+    scroll-snap-type: x proximity;
+    -webkit-mask-image: linear-gradient(to right, #000 92%, transparent 100%);
+    mask-image: linear-gradient(to right, #000 92%, transparent 100%);
+  }
+  .vistas::-webkit-scrollbar {
+    display: none;
+  }
+  .vistas button {
+    scroll-snap-align: start;
+    padding: var(--e-2) var(--e-3);
+  }
+  .vistas button span {
+    font-size: var(--t-sm);
+  }
+  .cartera-panel .buscador,
+  .cartera-panel .filtros,
+  .cartera-panel .card-title,
+  .cartera-panel #pagination {
+    margin-inline: var(--e-4);
+  }
+}
+
+/* --- Un control por trabajo ------------------------------------------------
+   "Consistencia sobre creatividad": si dos sitios hacen lo mismo, usan el
+   mismo control. Aquí hay dos trabajos distintos y por eso dos controles:
+
+   · SEGMENTADO — repartir una lista en pilas excluyentes (vistas de cartera,
+     chips del rail). Pista hundida, píldora elevada.
+   · PESTAÑA SUBRAYADA — cambiar de sección dentro de un mismo registro
+     (ficha de cliente). No filtra nada: navega.                            */
+
+.rail-filters {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+  gap: var(--e-1);
+  padding: var(--e-1);
+  background: var(--sup-hundida);
+  border-radius: var(--r-md);
+  margin-bottom: var(--e-2);
+}
+.rail-filters::-webkit-scrollbar {
+  display: none;
+}
+/* El degradado del borde avisa de que hay más chips a la derecha: si se
+   desplaza y nada lo dice, el contenido queda detrás de un gesto invisible. */
+.rail-filters {
+  -webkit-mask-image: linear-gradient(to right, #000 90%, transparent 100%);
+  mask-image: linear-gradient(to right, #000 90%, transparent 100%);
+  scroll-snap-type: x proximity;
+}
+.rail-filters button {
+  scroll-snap-align: start;
+}
+.rail-filters button {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--e-1);
+  flex: 0 0 auto;
+  padding: var(--e-2) var(--e-3);
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  font-size: var(--t-sm);
+  font-weight: 500;
+  color: var(--muted);
+  transition:
+    background var(--mov-rapido) var(--curva),
+    box-shadow var(--mov-medio) var(--curva),
+    color var(--mov-rapido) var(--curva);
+}
+.rail-filters button b {
+  font-family: var(--mono);
+  font-size: var(--t-xs);
+  font-weight: 500;
+  color: var(--muted);
+}
+.rail-filters button:hover {
+  background: rgba(255, 255, 255, 0.6);
+  color: var(--ink);
+}
+.rail-filters button.active {
+  background: var(--sup-tarjeta);
+  box-shadow: var(--nivel-2);
+  color: var(--ink);
+  font-weight: 600;
+}
+.rail-filters button.active b {
+  color: var(--green-text);
+  font-weight: 600;
+}
+
+/* Pestañas de la ficha: subrayado. Navegan entre secciones del mismo
+   registro, no filtran una lista — por eso no son segmentado. */
+.tabs,
+.customer-tabs {
+  border-bottom: 1px solid var(--borde-sutil);
+  gap: var(--e-1);
+}
+.tabs button,
+.customer-tabs button {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: var(--e-3) var(--e-3);
+  font-size: var(--t-base);
+  font-weight: 500;
+  color: var(--muted);
+  box-shadow: inset 0 -2px 0 transparent;
+  transition:
+    color var(--mov-rapido) var(--curva),
+    box-shadow var(--mov-medio) var(--curva);
+}
+.tabs button:hover,
+.customer-tabs button:hover {
+  color: var(--ink);
+  box-shadow: inset 0 -2px 0 var(--borde-fuerte);
+}
+.tabs button.active,
+.customer-tabs button.active {
+  color: var(--green-text);
+  font-weight: 600;
+  box-shadow: inset 0 -2px 0 var(--green);
+  background: transparent;
+}
+
+/* Tarjetas internas (resúmenes de la ficha, productos): un escalón por debajo
+   de la tarjeta que las contiene. Tono, no borde. */
+.summary-tile,
+.product-grid > article,
+.focus {
+  border: 1px solid var(--borde-sutil);
+  border-radius: var(--r-md);
+  box-shadow: none;
+  transition:
+    border-color var(--mov-rapido) var(--curva),
+    box-shadow var(--mov-medio) var(--curva),
+    transform var(--mov-medio) var(--curva);
+}
+.summary-tile:hover,
+.product-grid > article:hover {
+  border-color: var(--borde-fuerte);
+  box-shadow: var(--nivel-2);
+}
+
+/* Botones: una escala, tres variantes, los mismos estados en todas. */
+button,
+.btn {
+  padding: var(--e-3) var(--e-4);
+  font-size: var(--t-base);
+  font-weight: 600;
+  border: 1px solid var(--borde-fuerte);
+  background: var(--sup-tarjeta);
+  color: var(--ink);
+}
+button:hover,
+.btn:hover {
+  border-color: #b3c0c0;
+  background: var(--sup-suave);
+}
+button:active,
+.btn:active {
+  transform: translateY(0.5px);
+}
+button.primary,
+.btn.primary {
+  border-color: var(--green);
+  background: var(--green);
+  color: #fff;
+  box-shadow: var(--nivel-1);
+}
+button.primary:hover,
+.btn.primary:hover {
+  background: #006c35;
+  border-color: #006c35;
+  box-shadow: var(--nivel-2);
+}
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* En una pista que se desplaza, los segmentos NO pueden encogerse: con
+   flex-shrink los cinco se comprimían por debajo de su texto y se solapaban.
+   El contenido manda el ancho y la pista se desplaza. */
+.vistas button,
+.rail-filters button {
+  flex: 0 0 auto;
+}
+
+/* Las tarjetas de campaña ya tienen altura propia: el filete verde superior
+   era del tiempo en que se separaban por línea. Una cosa o la otra. */
+.campaigns .card {
+  border-top: 0;
+}
+
+/* Botón de icono: el cerrar del diálogo no es un botón con texto, así que no
+   lleva su caja. Fantasma en reposo, superficie al pasar por encima. */
+.modal-head button {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-full);
+  font-size: var(--t-lg);
+  line-height: 1;
+}
+.modal-head button:hover {
+  background: var(--sup-hundida);
+  color: var(--ink);
+}
+
+/* Cabecera del diálogo y separación del cuerpo, en la escala. */
+.modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--e-4);
+  margin-bottom: var(--e-5);
+}
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--e-3);
+  margin-top: var(--e-6);
+  padding-top: var(--e-5);
+  border-top: 1px solid var(--borde-sutil);
+}
+
+/* ===========================================================================
+   ETAPA 7 — capa minimalista
+   El principio: quitar hasta que quede solo lo que dispara una decisión, y
+   que lo que quede tenga un solo tratamiento. Un acento —el verde— y nada
+   compitiendo con él.
+   =========================================================================== */
+
+.sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Enlace de salto: primera parada del tabulador, invisible hasta recibir foco. */
+.skip-link {
+  position: absolute;
+  left: var(--e-3);
+  top: -60px;
+  z-index: 10;
+  background: var(--sup-tarjeta);
+  color: var(--green-text);
+  font-weight: 700;
+  font-size: var(--t-base);
+  padding: var(--e-3) var(--e-5);
+  border-radius: var(--r-sm);
+  box-shadow: var(--nivel-3);
+  transition: top var(--mov-medio) var(--curva);
+}
+.skip-link:focus {
+  top: var(--e-3);
+}
+
+/* --- Tabla de asociaciones ------------------------------------------------
+   Agrupada por cliente, sin cebra, con una hairline por fila. La cebra pinta
+   la mitad de las filas para separar lo que una línea separa con una décima
+   parte de la tinta. */
+.tabla-asociaciones {
+  width: 100%;
+  border-collapse: collapse;
+}
+.tabla-asociaciones thead th {
+  background: transparent;
+  border-bottom: 1px solid var(--borde-fuerte);
+  padding: var(--e-2) var(--e-4);
+  font-size: var(--t-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-align: left;
+  white-space: nowrap;
+}
+.tabla-asociaciones thead th button {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  display: inline-flex;
+  gap: var(--e-1);
+  align-items: center;
+}
+.tabla-asociaciones thead th button:hover {
+  color: var(--ink);
+  background: transparent;
+}
+.tabla-asociaciones .num-col,
+.tabla-asociaciones .num-col button {
+  text-align: right;
+  justify-content: flex-end;
+}
+
+/* La cabecera de grupo dice el cliente una vez. */
+.tabla-asociaciones .fila-cliente th {
+  text-align: left;
+  background: var(--sup-suave);
+  border-bottom: 1px solid var(--borde-sutil);
+  padding: var(--e-3) var(--e-4);
+  font-weight: 600;
+  font-size: var(--t-base);
+}
+.tabla-asociaciones .fila-cliente a {
+  color: var(--ink);
+}
+.tabla-asociaciones .fila-cliente a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.tabla-asociaciones .fila-cliente .dni {
+  font-family: var(--mono);
+  font-size: var(--t-xs);
+  font-weight: 400;
+  color: var(--muted);
+  margin-left: var(--e-3);
+}
+.tabla-asociaciones .cuenta-campanas {
+  float: right;
+  font-family: var(--mono);
+  font-size: var(--t-xs);
+  font-weight: 500;
+  color: var(--muted);
+}
+.grupo-cliente + .grupo-cliente .fila-cliente th {
+  border-top: 1px solid var(--borde-sutil);
+}
+.tabla-asociaciones tbody td {
+  padding: var(--e-3) var(--e-4);
+  border-bottom: 1px solid var(--borde-sutil);
+  font-size: var(--t-base);
+  vertical-align: baseline;
+}
+.tabla-asociaciones tbody tr:last-child td {
+  border-bottom: 0;
+}
+/* La sangría de la primera celda ata visualmente las campañas a su cliente. */
+.tabla-asociaciones .celda-vacia {
+  width: var(--e-6);
+  padding: 0;
+  border-bottom: 0;
+}
+.tabla-asociaciones td small {
+  display: block;
+  font-size: var(--t-xs);
+  color: var(--muted);
+  margin-top: 4px;
+}
+.tabla-asociaciones .num-col small {
+  text-align: right;
+}
+.tabla-asociaciones .rowaction {
+  text-align: right;
+  white-space: nowrap;
+}
+/* La acción de fila es secundaria: hay veinte por pantalla y ninguna es
+   "el siguiente paso" de la pantalla entera. Azul sólido las convertía en
+   veinte llamadas de atención compitiendo entre sí y con la marca. */
+.tabla-asociaciones .tipify9 {
+  background: var(--sup-tarjeta);
+  color: var(--green-text);
+  border: 1px solid #b9d9c5;
+  font-size: var(--t-sm);
+  font-weight: 600;
+  padding: var(--e-2) var(--e-3);
+}
+.tabla-asociaciones .tipify9:hover:not(:disabled) {
+  background: var(--green-tint);
+  border-color: var(--green);
+}
+.tabla-asociaciones .tipify9:disabled {
+  color: var(--muted);
+  border-color: var(--borde-sutil);
+  background: transparent;
+}
+
+/* --- Filtros de contacto como control segmentado -------------------------- */
+.contact-tabs9 {
+  display: inline-flex;
+  gap: var(--e-1);
+  padding: var(--e-1);
+  background: var(--sup-hundida);
+  border-radius: var(--r-md);
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.contact-tabs9::-webkit-scrollbar {
+  display: none;
+}
+.contact-tabs9 button {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--e-2);
+  flex: 0 0 auto;
+  border: 0;
+  background: transparent;
+  border-radius: var(--r-sm);
+  padding: var(--e-2) var(--e-4);
+  font-size: var(--t-base);
+  font-weight: 500;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.contact-tabs9 button b {
+  font-family: var(--mono);
+  font-size: var(--t-sm);
+  font-weight: 500;
+  color: var(--muted);
+}
+.contact-tabs9 button:hover {
+  background: rgba(255, 255, 255, 0.6);
+  color: var(--ink);
+}
+.contact-tabs9 button.active {
+  background: var(--sup-tarjeta);
+  box-shadow: var(--nivel-2);
+  color: var(--ink);
+  font-weight: 600;
+}
+.contact-tabs9 button.active b {
+  color: var(--green-text);
+  font-weight: 600;
+}
+
+/* --- Catálogo lateral -----------------------------------------------------
+   Seis controles se interponían entre abrir y ver la primera campaña. */
+.catalog9 {
+  background: var(--sup-tarjeta);
+  border: 0;
+  border-radius: var(--r-lg);
+  box-shadow: var(--nivel-1);
+  padding: var(--e-5);
+}
+.catalog-cab9 {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--e-3);
+  margin-bottom: var(--e-4);
+}
+.catalog-cab9 h2 {
+  font-size: var(--t-lg);
+  margin: 0;
+}
+.catalog-cab9 .num {
+  font-family: var(--mono);
+  font-size: var(--t-sm);
+  color: var(--muted);
+}
+#buscaCampana9 {
+  width: 100%;
+  margin-bottom: var(--e-3);
+}
+.catalog-filtros9 {
+  display: flex;
+  align-items: center;
+  gap: var(--e-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--e-3);
+}
+.catalog-filtros9 select {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--t-sm);
+  padding: var(--e-2) var(--e-3);
+}
+.checkline {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--e-2);
+  font-size: var(--t-sm);
+  color: var(--muted);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.checkline input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--green);
+}
+.limpiar9 {
+  display: inline-block;
+  margin-bottom: var(--e-3);
+  font-size: var(--t-sm);
+}
+
+/* Elegir campaña: filas de lista, no botones. Veinte botones apilados leen
+   como veinte acciones; una lista lee como un catálogo donde se elige. */
+.group9 {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  padding: var(--e-3) var(--e-2);
+  margin-top: var(--e-3);
+  font-size: var(--t-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  border-top: 1px solid var(--borde-sutil);
+  border-radius: 0;
+}
+.group9:hover {
+  color: var(--ink);
+  background: transparent;
+}
+.campaign-pick9 {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  border-radius: var(--r-sm);
+  padding: var(--e-3);
+  font-weight: 500;
+  box-shadow: inset 2px 0 0 transparent;
+  transition:
+    background var(--mov-rapido) var(--curva),
+    box-shadow var(--mov-rapido) var(--curva);
+}
+.campaign-pick9 b {
+  display: block;
+  font-size: var(--t-sm);
+  font-weight: 600;
+  line-height: 1.4;
+}
+.campaign-pick9 small {
+  display: block;
+  font-family: var(--mono);
+  font-size: var(--t-xs);
+  color: var(--muted);
+  margin-top: 4px;
+}
+.campaign-pick9:hover {
+  background: var(--sup-suave);
+}
+.campaign-pick9.selected {
+  background: var(--green-tint);
+  box-shadow: inset 2px 0 0 var(--green);
+}
+.campaign-pick9.selected b {
+  color: var(--green-text);
+}
+.todas9 {
+  border: 1px solid var(--borde-sutil);
+  margin-bottom: var(--e-2);
+}
+
+/* Contexto bajo el título, en lugar de tres tarjetas de métrica. */
+.contexto9 {
+  margin: var(--e-2) 0 0;
+  font-size: var(--t-base);
+  color: var(--muted);
+}
+.contexto9 b {
+  font-family: var(--mono);
+  color: var(--ink);
+  font-weight: 600;
+}
+.campaign-head9 {
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+  margin-bottom: var(--e-6);
+}
+
+.busca-asociaciones9 {
+  width: 100%;
+  margin-bottom: var(--e-4);
+}
+.campaign-data9 {
+  background: var(--sup-tarjeta);
+  border: 0;
+  border-radius: var(--r-lg);
+  box-shadow: var(--nivel-1);
+  padding: var(--e-5);
+}
+.campaign-data9 .table-wrap {
+  margin: var(--e-5) calc(var(--e-5) * -1) 0;
+}
+
+/* ===========================================================================
+   Correcciones medidas — WCAG y responsive
+   =========================================================================== */
+
+/* Contraste: 4.4:1 y 3.02:1 medidos con axe. */
+.workspace-intro7 p,
+.workspace-intro7 .sub {
+  color: #3f5a55;
+}
+.profile .avatar,
+.customer-banner .avatar {
+  background: var(--sup-hundida);
+  color: #3d4f54;
+}
+
+/* Objetivos táctiles: los ordenadores de columna medían 14px de alto y los
+   enlaces de cliente 18px. El mínimo es 24px (WCAG 2.5.8). */
+.tabla-asociaciones thead th button {
+  min-height: 24px;
+  padding-block: var(--e-1);
+}
+.tabla-asociaciones .fila-cliente a {
+  display: inline-block;
+  min-height: 24px;
+  line-height: 24px;
+}
+input[type="checkbox"],
+input[type="radio"] {
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  min-height: 18px;
+}
+.checkline {
+  min-height: 24px;
+}
+
+/* La rejilla de dos columnas del módulo de campañas desbordaba 338px a 390:
+   en pantalla estrecha el catálogo va debajo, no al lado. */
+@media (max-width: 900px) {
+  .campaign-layout9 {
+    display: block;
+  }
+  .catalog9 {
+    margin-top: var(--e-5);
+  }
+  .campaign-data9 {
+    padding: var(--e-4);
+  }
+  .campaign-data9 .table-wrap {
+    margin-inline: calc(var(--e-4) * -1);
+  }
+}
+
+/* El menú superior escondía hasta 233px tras un gesto sin señal alguna:
+   envuelve y se ven todas las secciones. */
+@media (max-width: 760px) {
+  nav {
+    display: flex;
+    flex-wrap: wrap;
+    overflow-x: visible;
+    row-gap: var(--e-1);
+  }
+}
+
+/* El gráfico del panel de ventas desbordaba 98px a 390. */
+.chart {
+  gap: clamp(4px, 2vw, 20px);
+  padding-inline: clamp(4px, 1.5vw, 12px);
+  min-width: 0;
+}
+.bar-group {
+  min-width: 0;
+}
+.bar-group .bar {
+  width: clamp(8px, 5vw, 22px);
+  min-width: 8px;
+}
+
+/* Foco visible con contraste suficiente en todo control. */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid #1f6fa8;
+  outline-offset: 2px;
+}
+aside a:focus-visible,
+nav a:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: -2px;
+}
+
+/* El avatar de la ficha vivía en `.reference-banner8 .profile .avatar`, con
+   más especificidad que la regla del sistema: ámbar sobre crema daba 3.02:1,
+   por debajo del 4.5 que pide un texto. */
+.reference-banner8 .profile .avatar,
+.reference-banner8 .avatar {
+  background: var(--sup-hundida);
+  color: #3d4f54;
+  border-color: var(--borde-fuerte);
+}
+
+/* WCAG 2.5.8 pide 24×24 CSS px de objetivo. Un checkbox de 18 no llega, y
+   el label alrededor no cuenta: la regla mide el control. */
+input[type="checkbox"],
+input[type="radio"] {
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  min-height: 24px;
+}
+
+/* A 390px el margen negativo de la tabla la sacaba de la tarjeta y empujaba
+   la página 230px. El desbordamiento se queda dentro de su contenedor. */
+@media (max-width: 900px) {
+  .campaign-data9 {
+    overflow: hidden;
+  }
+  .campaign-data9 .table-wrap {
+    margin-inline: 0;
+  }
+}
+
+/* Verde de 3.74:1 sobre blanco en las tarjetas de resumen de la ficha. */
+.summary-tile b,
+.summary-tile > div > b {
+  color: var(--green-text);
+}
+
+/* La tabla de campañas a 390px: el desbordamiento pertenece a la región con
+   scroll, no a la página. */
+@media (max-width: 900px) {
+  .campaign-layout9,
+  .campaign-data9,
+  .campaign-data9 > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .campaign-data9 .table-wrap {
+    overflow-x: auto;
+    max-width: 100%;
+  }
+}
+
+/* --- La tabla de asociaciones en móvil ------------------------------------
+   A 390px la tabla mide 688px. Desplazarla horizontalmente esconde la mitad
+   de cada fila —incluida la acción— detrás de un gesto que nada anuncia.
+   Apilada, cada asociación es un bloque completo y no hay nada que descubrir.
+   La cabecera de cliente se mantiene: sigue diciendo de quién es el bloque. */
+@media (max-width: 720px) {
+  .campaign-data9 .table-wrap {
+    overflow-x: visible;
+  }
+  .tabla-asociaciones,
+  .tabla-asociaciones tbody,
+  .tabla-asociaciones tr,
+  .tabla-asociaciones td {
+    display: block;
+    width: 100%;
+  }
+  .tabla-asociaciones thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+  }
+  .tabla-asociaciones .fila-cliente,
+  .tabla-asociaciones .fila-cliente th {
+    display: block;
+    width: 100%;
+  }
+  .tabla-asociaciones .celda-vacia {
+    display: none;
+  }
+  .tabla-asociaciones tbody tr:not(.fila-cliente) {
+    padding: var(--e-3) var(--e-4) var(--e-4);
+    border-bottom: 1px solid var(--borde-sutil);
+  }
+  .tabla-asociaciones tbody td {
+    border-bottom: 0;
+    padding: var(--e-1) 0;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--e-4);
+    text-align: left;
+  }
+  /* La etiqueta de columna viaja con el dato: sin cabecera visible, una cifra
+     suelta no dice de qué es. */
+  .tabla-asociaciones tbody td[data-col]::before {
+    content: attr(data-col);
+    flex: 0 0 auto;
+    font-size: var(--t-xs);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .tabla-asociaciones .celda-campana {
+    display: block;
+    font-weight: 600;
+    padding-bottom: var(--e-2);
+  }
+  .tabla-asociaciones .num-col,
+  .tabla-asociaciones .num-col small {
+    text-align: right;
+  }
+  .tabla-asociaciones .rowaction {
+    display: block;
+    padding-top: var(--e-3);
+  }
+  .tabla-asociaciones .rowaction button {
+    width: 100%;
+  }
+  .tabla-asociaciones .cuenta-campanas {
+    float: none;
+    display: block;
+    margin-top: 4px;
+  }
+}
+
+/* Resumen del día en una línea, no en cuatro tarjetas. */
+.heading .sub b,
+.contexto9 b {
+  font-family: var(--mono);
+  font-weight: 600;
+  color: var(--ink);
+}
+/* El banner del panel se queda solo con la acción que no está en otro sitio. */
+.workspace-intro7 {
+  display: flex;
+  justify-content: flex-end;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  margin: 0 0 calc(var(--e-4) * -1);
+}
+
+/* --- Bandeja de trabajo ---------------------------------------------------
+   Cada fila repetía tres valores idénticos en las veinte: el motivo, el paso
+   siguiente y la fecha. Ahora la fila dice quién, en qué estado y cuándo, y
+   los dos primeros solo cuando difieren de lo esperado. */
+.busca-bandeja7 {
+  width: 100%;
+  margin-bottom: var(--e-4);
+}
+.work-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--e-5);
+  padding: var(--e-4) 0;
+  border-bottom: 1px solid var(--borde-sutil);
+  background: transparent;
+  border-radius: 0;
+}
+.work-row:last-child {
+  border-bottom: 0;
+}
+.work-row .quien7 b {
+  display: block;
+  font-size: var(--t-md);
+  font-weight: 600;
+  line-height: 1.3;
+}
+.work-row .quien7 small {
+  display: block;
+  font-size: var(--t-sm);
+  color: var(--muted);
+  margin-top: 4px;
+}
+.work-row .quien7 .dni {
+  font-family: var(--mono);
+  font-size: var(--t-xs);
+}
+.work-row .que7 small {
+  display: block;
+  font-size: var(--t-sm);
+  color: var(--muted);
+  margin-top: var(--e-1);
+}
+.work-row .cuando7 {
+  font-size: var(--t-sm);
+  text-align: right;
+  white-space: nowrap;
+  min-width: 108px;
+}
+.work-row .cuando7 .num {
+  font-family: var(--mono);
+  color: var(--muted);
+}
+/* Lo vencido es lo único que cambia la conducta en esa columna, así que es
+   lo único que se marca — con palabra, no solo con color. */
+.work-row .vencido7 {
+  color: var(--amber-text);
+  font-weight: 600;
+}
+/* La acción de fila es secundaria: veinte primarios verdes no son veinte
+   prioridades, son ninguna. */
+.work-row > button {
+  white-space: nowrap;
+  background: var(--sup-tarjeta);
+  color: var(--green-text);
+  border: 1px solid #b9d9c5;
+  font-weight: 600;
+}
+.work-row > button:hover {
+  background: var(--green-tint);
+  border-color: var(--green);
+}
+
+@media (max-width: 760px) {
+  .work-row {
+    grid-template-columns: 1fr auto;
+    gap: var(--e-2) var(--e-4);
+  }
+  .work-row .que7 {
+    grid-column: 1;
+  }
+  .work-row .cuando7 {
+    grid-column: 2;
+    grid-row: 2;
+  }
+  .work-row > button {
+    grid-column: 1 / -1;
+    width: 100%;
+    margin-top: var(--e-2);
+  }
+}
+
+.card-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--e-4);
+  flex-wrap: wrap;
+  margin-bottom: var(--e-4);
+}
+.card-title > h2 {
+  margin: 0;
+  flex: 1 1 auto;
+}
+.card-title button {
+  font-size: var(--t-sm);
+  padding: var(--e-2) var(--e-3);
+}
+
+/* --- Indicador de pasos ---------------------------------------------------
+   Tres círculos verdes idénticos no dicen dónde estás. Cada estado tiene su
+   forma: completado lleva un check y relleno, el actual va anillado, el
+   pendiente queda hueco. La diferencia no depende del color. */
+.steps9 {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--e-2);
+  margin: var(--e-5) 0 var(--e-6);
+}
+.steps9 span {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--e-2);
+  font-size: var(--t-sm);
+  text-align: center;
+  color: var(--muted);
+  position: relative;
+}
+/* La línea que une los pasos dice que son una secuencia, no tres opciones. */
+.steps9 span:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  top: 15px;
+  left: calc(50% + 20px);
+  right: calc(-50% + 20px);
+  height: 1px;
+  background: var(--borde-fuerte);
+}
+.steps9 span b {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-full);
+  font-family: var(--mono);
+  font-size: var(--t-sm);
+  font-weight: 600;
+  background: var(--sup-hundida);
+  color: var(--muted);
+  box-shadow: 0 0 0 0 transparent;
+  transition:
+    background var(--mov-medio) var(--curva),
+    box-shadow var(--mov-medio) var(--curva);
+}
+.steps9 .hecho b {
+  background: var(--green);
+  color: #fff;
+}
+.steps9 .hecho {
+  color: var(--ink);
+}
+.steps9 .hecho:not(:last-child)::after {
+  background: var(--green);
+}
+.steps9 .actual b {
+  background: var(--sup-tarjeta);
+  color: var(--green-text);
+  box-shadow: 0 0 0 2px var(--green);
+}
+.steps9 .actual {
+  color: var(--ink);
+  font-weight: 600;
+}
+.steps9 .pendiente b {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--borde-fuerte);
+}
+
+/* --- Opciones de respuesta ------------------------------------------------
+   Una lista de opciones se lee por su etiqueta, alineada con su icono. */
+.state-pick9 {
+  display: flex;
+  align-items: center;
+  gap: var(--e-4);
+  width: 100%;
+  text-align: left;
+  padding: var(--e-4);
+  border: 1px solid var(--borde-sutil);
+  border-radius: var(--r-md);
+  background: var(--sup-tarjeta);
+  font-size: var(--t-md);
+  font-weight: 500;
+  margin-bottom: var(--e-2);
+}
+.state-pick9 > span:first-child {
+  flex: 0 0 auto;
+}
+.state-pick9 > b,
+.state-pick9 > span:nth-child(2) {
+  flex: 1 1 auto;
+  text-align: left;
+  font-weight: 600;
+}
+.state-pick9:hover {
+  border-color: var(--green);
+  background: var(--green-tint);
+}
+
+.states9 {
+  display: grid;
+  gap: var(--e-2);
+  margin-bottom: var(--e-4);
+}
+.state-icon9 {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-full);
+  background: var(--sup-hundida);
+  color: var(--muted);
+  font-size: var(--t-base);
+  flex: 0 0 auto;
+}
+.state-chevron9 {
+  color: var(--muted);
+  font-size: var(--t-lg);
+  flex: 0 0 auto;
+}
+.state-pick9:hover .state-icon9 {
+  background: var(--sup-tarjeta);
+  color: var(--green-text);
+}
+
+/* En una pista que se desplaza los segmentos no se encogen ni envuelven: un
+   control partido en dos filas deja de leerse como un control. */
+.contact-tabs9 {
+  flex-wrap: nowrap;
+  scroll-snap-type: x proximity;
+  -webkit-mask-image: linear-gradient(to right, #000 92%, transparent 100%);
+  mask-image: linear-gradient(to right, #000 92%, transparent 100%);
+}
+.contact-tabs9 button {
+  flex: 0 0 auto;
+  scroll-snap-align: start;
+}
+
+/* ===========================================================================
+   ETAPA 8
+   =========================================================================== */
+
+/* Lo primero que se lee: qué mide esta pantalla. */
+.aviso-alcance8 {
+  margin: calc(var(--e-2) * -1) 0 var(--e-5);
+  padding: var(--e-3) var(--e-4);
+  background: var(--sup-hundida);
+  border-radius: var(--r-sm);
+  font-size: var(--t-sm);
+  color: var(--muted);
+  line-height: 1.6;
+}
+.aviso-alcance8 b {
+  color: var(--ink);
+}
+
+/* Paginación: un número resuelve lo que el scroll infinito obliga a recorrer
+   con el dedo. */
+.paginador8 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--e-4);
+  flex-wrap: wrap;
+  margin-top: var(--e-4);
+  padding-top: var(--e-4);
+  border-top: 1px solid var(--borde-sutil);
+  font-size: var(--t-sm);
+  color: var(--muted);
+}
+.paginador8 b {
+  font-family: var(--mono);
+  color: var(--ink);
+}
+.paginador8 button {
+  font-size: var(--t-sm);
+  padding: var(--e-2) var(--e-3);
+}
+
+/* Tablas de indicadores: cifras alineadas a la derecha y en mono, para poder
+   compararlas columna abajo. */
+.tabla-metas8,
+.tabla-detalle8,
+.tabla-equipo8 {
+  width: 100%;
+  border-collapse: collapse;
+}
+.tabla-metas8 th,
+.tabla-detalle8 th,
+.tabla-equipo8 th {
+  background: transparent;
+  border-bottom: 1px solid var(--borde-fuerte);
+  padding: var(--e-2) var(--e-3);
+  font-size: var(--t-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-align: left;
+  white-space: nowrap;
+}
+.tabla-metas8 td,
+.tabla-detalle8 td,
+.tabla-equipo8 td {
+  padding: var(--e-3);
+  border-bottom: 1px solid var(--borde-sutil);
+  font-size: var(--t-base);
+  vertical-align: middle;
+}
+.tabla-metas8 .num-col,
+.tabla-detalle8 .num-col,
+.tabla-equipo8 .num-col {
+  text-align: right;
+}
+.tabla-equipo8 td small {
+  display: block;
+  font-size: var(--t-xs);
+  color: var(--muted);
+}
+/* Lo que falta es la cifra sobre la que se decide: se marca. Y lleva palabra
+   o símbolo, no solo color. */
+.falta8 {
+  color: var(--amber-text);
+  font-weight: 600;
+}
+.listo8 {
+  color: var(--green-text);
+  font-weight: 600;
+}
+.barra8 {
+  display: inline-block;
+  vertical-align: middle;
+  width: 72px;
+  height: 6px;
+  border-radius: var(--r-full);
+  background: var(--sup-hundida);
+  overflow: hidden;
+  margin-right: var(--e-2);
+}
+.barra8 span {
+  display: block;
+  height: 100%;
+  background: var(--green);
+  border-radius: var(--r-full);
+}
+.tabla-equipo8 tfoot th,
+.tabla-equipo8 tfoot td {
+  border-top: 2px solid var(--borde-fuerte);
+  border-bottom: 0;
+  background: var(--sup-suave);
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: var(--t-base);
+  color: var(--ink);
+  padding: var(--e-3);
+}
+
+@media (max-width: 760px) {
+  .tabla-metas8,
+  .tabla-detalle8,
+  .tabla-equipo8,
+  .tabla-metas8 tbody,
+  .tabla-detalle8 tbody,
+  .tabla-equipo8 tbody,
+  .tabla-metas8 tr,
+  .tabla-detalle8 tr,
+  .tabla-equipo8 tr,
+  .tabla-metas8 td,
+  .tabla-detalle8 td,
+  .tabla-equipo8 td {
+    display: block;
+    width: 100%;
+  }
+  .tabla-metas8 thead,
+  .tabla-detalle8 thead,
+  .tabla-equipo8 thead,
+  .tabla-equipo8 tfoot {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+  }
+  .tabla-metas8 tbody tr,
+  .tabla-detalle8 tbody tr,
+  .tabla-equipo8 tbody tr {
+    padding: var(--e-3) 0 var(--e-4);
+    border-bottom: 1px solid var(--borde-sutil);
+  }
+  .tabla-metas8 td,
+  .tabla-detalle8 td,
+  .tabla-equipo8 td {
+    border-bottom: 0;
+    padding: var(--e-1) 0;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--e-4);
+    text-align: left;
+  }
+  .tabla-metas8 td[data-col]::before,
+  .tabla-detalle8 td[data-col]::before,
+  .tabla-equipo8 td[data-col]::before {
+    content: attr(data-col);
+    font-size: var(--t-xs);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .tabla-metas8 td:first-child,
+  .tabla-detalle8 td:first-child,
+  .tabla-equipo8 td:first-child {
+    display: block;
+    font-weight: 600;
+    padding-bottom: var(--e-2);
+  }
+  .tabla-equipo8 .rowaction button {
+    width: 100%;
+    margin-top: var(--e-2);
+  }
+}
+
+/* Panel con control segmentado dentro: el control y el conteo comparten fila
+   y el buscador va a todo el ancho del panel que gobierna. */
+.cartera-panel {
+  padding: 0;
+  overflow: hidden;
+}
+.cartera-panel .panel-cab {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--e-4);
+  padding: var(--e-4) var(--e-5);
+  background: var(--sup-suave);
+  border-bottom: 1px solid var(--borde-sutil);
+  margin: 0;
+}
+.cartera-panel .buscador {
+  margin: var(--e-5) var(--e-5) 0;
+}
+.cartera-panel .buscador input {
+  width: 100%;
+}
+.cartera-panel .table-wrap {
+  margin-top: var(--e-4);
+}
+.cartera-panel .paginador8 {
+  margin: 0;
+  padding: var(--e-4) var(--e-5);
+}
+.tabla-sup8 {
+  width: 100%;
+  border-collapse: collapse;
+}
+.tabla-sup8 th {
+  background: transparent;
+  border-bottom: 1px solid var(--borde-fuerte);
+  padding: var(--e-2) var(--e-4);
+  font-size: var(--t-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-align: left;
+  white-space: nowrap;
+}
+.tabla-sup8 td {
+  padding: var(--e-3) var(--e-4);
+  border-bottom: 1px solid var(--borde-sutil);
+  font-size: var(--t-base);
+  vertical-align: middle;
+}
+.tabla-sup8 .num-col,
+.tabla-sup8 th.num-col {
+  text-align: right;
+}
+.tabla-sup8 td small.dni {
+  display: block;
+  font-family: var(--mono);
+  font-size: var(--t-xs);
+  color: var(--muted);
+  margin-top: 4px;
+}
+.tabla-sup8 .rowaction {
+  text-align: right;
+}
+.tabla-sup8 .rowaction button {
+  font-size: var(--t-sm);
+  padding: var(--e-2) var(--e-3);
+}
+
+@media (max-width: 860px) {
+  .tabla-sup8,
+  .tabla-sup8 tbody,
+  .tabla-sup8 tr,
+  .tabla-sup8 td {
+    display: block;
+    width: 100%;
+  }
+  .tabla-sup8 thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+  }
+  .tabla-sup8 tbody tr {
+    padding: var(--e-3) var(--e-4) var(--e-4);
+    border-bottom: 1px solid var(--borde-sutil);
+  }
+  .tabla-sup8 td {
+    border-bottom: 0;
+    padding: var(--e-1) 0;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--e-4);
+  }
+  .tabla-sup8 td[data-col]::before {
+    content: attr(data-col);
+    font-size: var(--t-xs);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .tabla-sup8 td:first-child {
+    display: block;
+    font-weight: 600;
+    padding-bottom: var(--e-2);
+  }
+  .tabla-sup8 .rowaction button {
+    width: 100%;
+    margin-top: var(--e-2);
+  }
+}
+
+/* ===========================================================================
+   DIÁLOGO — un solo scroll, cabecera y acciones siempre a la vista
+   ---------------------------------------------------------------------------
+   Medido en una pantalla de 768px de alto: el contenido del diálogo de carga
+   masiva mide 1159px. Con `max-height: 90vh` el sobrante se resolvía con un
+   scroll del diálogo MÁS el scroll propio de cada tabla interna — tres barras
+   compitiendo, y los botones de confirmar fuera de vista sin ninguna señal de
+   que existieran.
+
+   Ahora: el diálogo no scrollea, scrollea su cuerpo, y cabecera y acciones se
+   quedan pegadas. Siempre se ve qué es esto y cómo salir.
+   =========================================================================== */
+dialog {
+  width: min(1040px, 94vw);
+  max-height: 92vh;
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+dialog:not(.wide-dialog) {
+  width: min(680px, 94vw);
+}
+#modal {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: 92vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 var(--e-7) var(--e-2);
+}
+.modal-head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--sup-tarjeta);
+  padding: var(--e-6) 0 var(--e-4);
+  margin: 0 0 var(--e-4);
+  border-bottom: 1px solid var(--borde-sutil);
+}
+.modal-head h2 {
+  font-size: var(--t-xl);
+  margin: 0;
+}
+/* Las acciones no se van con el scroll: confirmar no puede estar escondido. */
+.modal-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  background: var(--sup-tarjeta);
+  margin: var(--e-5) 0 0;
+  padding: var(--e-4) 0 var(--e-6);
+  border-top: 1px solid var(--borde-sutil);
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--e-3);
+  flex-wrap: wrap;
+}
+
+/* Dentro de un diálogo, ninguna tabla lleva su propio scroll: el cuerpo ya
+   tiene uno y anidar barras deja contenido escondido dos niveles adentro. */
+#modal .table-wrap {
+  overflow: visible;
+  max-height: none;
+}
+#modal table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--t-sm);
+}
+#modal th {
+  background: transparent;
+  border-bottom: 1px solid var(--borde-fuerte);
+  padding: var(--e-2);
+  text-align: left;
+  font-size: var(--t-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  white-space: nowrap;
+}
+#modal td {
+  padding: var(--e-2);
+  border-bottom: 1px solid var(--borde-sutil);
+  vertical-align: middle;
+}
+#modal h3 {
+  font-size: var(--t-md);
+  margin: var(--e-6) 0 var(--e-2);
+}
+#modal .formgrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--e-4);
+}
+#modal .formgrid label {
+  display: grid;
+  gap: var(--e-2);
+  font-size: var(--t-sm);
+  font-weight: 500;
+  min-width: 0;
+}
+#modal .formgrid .full {
+  grid-column: 1 / -1;
+}
+#modal .rules {
+  align-items: end;
+}
+#modal .rule-action {
+  display: flex;
+  align-items: end;
+}
+#modal .rule-action button {
+  white-space: nowrap;
+}
+
+/* Los cuatro conteos del lote: una fila legible, no cuatro cajas apretadas. */
+.intake-counts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+  gap: var(--e-3);
+  margin: var(--e-5) 0;
+}
+.intake-counts > div {
+  background: var(--sup-suave);
+  border-radius: var(--r-md);
+  padding: var(--e-3) var(--e-4);
+}
+.intake-counts strong {
+  display: block;
+  font-family: var(--mono);
+  font-size: var(--t-xl);
+  font-weight: 600;
+  line-height: 1.1;
+}
+.intake-counts span {
+  font-size: var(--t-sm);
+  color: var(--muted);
+}
+
+@media (max-width: 760px) {
+  dialog,
+  dialog:not(.wide-dialog) {
+    width: 100vw;
+    max-width: 100vw;
+    max-height: 100vh;
+    height: 100vh;
+    border-radius: 0;
+    margin: 0;
+  }
+  #modal {
+    max-height: 100vh;
+    padding-inline: var(--e-4);
+  }
+}
+
+/* Bloques dentro del diálogo: uno debajo de otro, sin tablas compartiendo
+   fila ni textos flotando junto a los contadores. */
+#modal .bloque8 {
+  display: block;
+  margin-top: var(--e-6);
+}
+#modal .bloque8 h3 {
+  margin: 0 0 var(--e-1);
+}
+#modal .bloque8 .sub {
+  margin: 0 0 var(--e-3);
+  font-size: var(--t-sm);
+  color: var(--muted);
+}
+.tabla-reparto8 {
+  width: 100%;
+  border-collapse: collapse;
+}
+.tabla-reparto8 .num-col {
+  text-align: right;
+}
+.tabla-reparto8 td small.dni {
+  display: block;
+  font-family: var(--mono);
+  font-size: var(--t-xs);
+  color: var(--muted);
+}
+.suma8 {
+  color: var(--green-text);
+  font-weight: 600;
+}
+.intake-counts small {
+  display: block;
+  font-size: var(--t-xs);
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+/* La derivación a Riesgos es una salida del flujo, no un residuo: se ve. */
+.derivacion8 {
+  background: var(--st-curso-bg);
+  border-radius: var(--r-md);
+  padding: var(--e-4);
+}
+.derivacion8 h3 {
+  color: var(--st-curso-fg);
+}
+.lista-derivados8 {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--e-2);
+}
+.lista-derivados8 li {
+  display: flex;
+  align-items: baseline;
+  gap: var(--e-3);
+  flex-wrap: wrap;
+  background: var(--sup-tarjeta);
+  border-radius: var(--r-sm);
+  padding: var(--e-2) var(--e-3);
+  font-size: var(--t-sm);
+}
+.lista-derivados8 .dni {
+  font-family: var(--mono);
+  font-size: var(--t-xs);
+  color: var(--muted);
+}
+.lista-derivados8 .motivo8 {
+  margin-left: auto;
+  color: var(--st-curso-fg);
+  font-weight: 500;
+}
+
+/* =========================================================================
+   Etapa 9 · Administración del canal
+   Nada nuevo en el sistema: el track y el panel del canal se construyen con
+   los mismos tokens, la misma tabla y la misma píldora de estado que ya usa
+   el supervisor. Cambiar de nivel no debería obligar a reaprender a leer.
+   ========================================================================= */
+
+/* Indicadores que además filtran. Son botones, así que se comportan como
+   botones: foco visible, pulsables con teclado y 44px de alto mínimo. */
+.stat-boton9 {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  border: 1px solid var(--borde-sutil);
+  background: var(--sup-tarjeta);
+  border-radius: var(--r-lg);
+  padding: var(--e-4) var(--e-5);
+  box-shadow: var(--nivel-1);
+  transition:
+    box-shadow var(--mov-rapido) var(--curva),
+    border-color var(--mov-rapido) var(--curva);
+}
+.stat-boton9:hover {
+  border-color: var(--borde-fuerte);
+  box-shadow: var(--nivel-2);
+}
+.stat-boton9 .stat-top {
+  font-size: var(--t-xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 600;
+}
+.stat-boton9 strong {
+  display: block;
+  font-size: var(--t-2xl);
+  line-height: 1.1;
+  color: var(--ink);
+  margin: var(--e-2) 0 var(--e-1);
+}
+.stat-boton9 small {
+  display: block;
+  color: var(--muted);
+  font-size: var(--t-xs);
+}
+
+/* Los filtros viven dentro de la tarjeta que gobiernan: mando junto a efecto.
+   Se envuelven solos, así que no hay una maqueta distinta por ancho. */
+.filtros-track9 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--e-3);
+  padding: 0 var(--e-5) var(--e-4);
+  border-bottom: 1px solid var(--borde-sutil);
+}
+.filtros-track9 .buscador {
+  flex: 1 1 260px;
+  min-width: 0;
+}
+.filtros-track9 .buscador input {
+  width: 100%;
+}
+.campo9 {
+  display: flex;
+  flex-direction: column;
+  gap: var(--e-1);
+  font-size: var(--t-xs);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 600;
+  flex: 1 1 170px;
+  min-width: 0;
+}
+.campo9 select {
+  width: 100%;
+  min-height: 40px;
+  font-size: var(--t-base);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink);
+  font-weight: 400;
+}
+.filtros-track9 .textbtn {
+  min-height: 40px;
+}
+
+.tabla-track9 {
+  width: 100%;
+  border-collapse: collapse;
+}
+.tabla-track9 th {
+  background: var(--sup-suave);
+  border-bottom: 1px solid var(--borde-fuerte);
+  padding: var(--e-3) var(--e-4);
+  font-size: var(--t-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-align: left;
+  white-space: nowrap;
+}
+.tabla-track9 td {
+  padding: var(--e-3) var(--e-4);
+  border-bottom: 1px solid var(--borde-sutil);
+  vertical-align: top;
+  color: var(--ink);
+}
+.tabla-track9 td small {
+  display: block;
+  color: var(--muted);
+  font-size: var(--t-xs);
+  margin-top: 2px; /* fuera-de-escala */
+  max-width: 34ch;
+}
+.tabla-track9 .num-col {
+  text-align: right;
+}
+.vacio9 {
+  padding: var(--e-8) var(--e-5);
+  color: var(--muted);
+  text-align: center;
+}
+
+/* Reparto de tipificaciones: una barra por respuesta. La etiqueta manda y la
+   cifra acompaña, igual que en el control segmentado. */
+.tipif9 {
+  list-style: none;
+  margin: 0;
+  padding: var(--e-2) var(--e-5) var(--e-5);
+  display: grid;
+  gap: var(--e-3);
+}
+.tipif9 li {
+  display: grid;
+  grid-template-columns: minmax(120px, 15rem) 1fr auto;
+  align-items: center;
+  gap: var(--e-4);
+}
+.tipif9-nombre {
+  color: var(--ink);
+  font-size: var(--t-sm);
+}
+.tipif9-barra {
+  background: var(--sup-hundida);
+  border-radius: var(--r-full);
+  height: 8px;
+  overflow: hidden;
+}
+.tipif9-barra i {
+  display: block;
+  height: 100%;
+  background: var(--green);
+  border-radius: var(--r-full);
+}
+.tipif9 b {
+  color: var(--ink);
+  min-width: 3ch;
+  text-align: right;
+}
+
+@media (max-width: 760px) {
+  .filtros-track9 {
+    padding: 0 var(--e-4) var(--e-4);
+  }
+  .campo9 {
+    flex: 1 1 100%;
+  }
+  /* La tabla del track se apila igual que las de la Etapa 8: desplazar una
+     tabla de seis columnas en un móvil es pedirle al pulgar que haga de ojo. */
+  .tabla-track9,
+  .tabla-track9 tbody,
+  .tabla-track9 tr,
+  .tabla-track9 td {
+    display: block;
+    width: 100%;
+  }
+  .tabla-track9 thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+  }
+  .tabla-track9 tbody tr {
+    padding: var(--e-3) 0 var(--e-4);
+    border-bottom: 1px solid var(--borde-sutil);
+  }
+  .tabla-track9 td {
+    border-bottom: 0;
+    padding: var(--e-1) 0;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--e-4);
+  }
+  .tabla-track9 td[data-col]::before {
+    content: attr(data-col);
+    font-size: var(--t-xs);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--muted);
+    flex: 0 0 auto;
+  }
+  /* Las celdas que llevan valor + subtítulo no caben en una fila de etiqueta
+     a la izquierda y valor a la derecha: el valor se parte en dos líneas y el
+     subtítulo se queda colgando. Esas se apilan; las cortas (píldoras, días)
+     siguen en línea, que es donde ese formato sí funciona. */
+  .tabla-track9 td:first-child,
+  .tabla-track9 td[data-col="Lote"],
+  .tabla-track9 td[data-col="Carterizado a"] {
+    display: block;
+    padding-bottom: var(--e-2);
+  }
+  .tabla-track9 td[data-col="Lote"]::before,
+  .tabla-track9 td[data-col="Carterizado a"]::before {
+    display: block;
+    margin-bottom: var(--e-1);
+  }
+  .tabla-track9 td small {
+    text-align: left;
+    max-width: none;
+  }
+  .tabla-track9 td:first-child::before {
+    display: none;
+  }
+  .tipif9 li {
+    grid-template-columns: 1fr auto;
+  }
+  .tipif9-barra {
+    grid-column: 1 / -1;
+  }
+}
+
+/* =========================================================================
+   Etapa 10 · La validación como paso de la página
+   El diálogo desaparece; lo que había dentro se construye con los mismos
+   componentes que el resto de vistas. No hay estilo nuevo: hay estilo
+   reutilizado, que es lo que hacía falta para que se pareciera al sistema.
+   ========================================================================= */
+
+/* Rastro de vuelta: un paso dentro de una vista necesita decir de dónde viene
+   y cómo salir sin confirmar. Es lo que un diálogo daba con su "×". */
+.volver10 {
+  background: none;
+  border: 0;
+  padding: var(--e-1) 0;
+  margin-bottom: var(--e-1);
+  color: var(--green-text);
+  font: inherit;
+  font-size: var(--t-sm);
+  font-weight: 600;
+  cursor: pointer;
+  min-height: 32px;
+}
+.volver10:hover {
+  text-decoration: underline;
+}
+
+.paso-activo10 {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* Las reglas del lote: tres campos y una acción en una fila que se envuelve.
+   Antes eran un formgrid de diálogo, que a 1040px dejaba el botón flotando. */
+.reglas10 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--e-4);
+  padding: 0 var(--e-5) var(--e-5);
+}
+.reglas10 .campo9 {
+  flex: 0 1 200px;
+}
+.reglas10 input {
+  min-height: 40px;
+  width: 100%;
+}
+.reglas10 button {
+  min-height: 40px;
+}
+
+/* Contadores del lote: misma retícula y mismo peso que los indicadores del
+   track, para que se lean como la misma familia. */
+.intake-counts10 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: var(--e-4);
+  margin: 0 0 var(--e-6);
+}
+.intake-counts10 > div {
+  background: var(--sup-tarjeta);
+  border: 1px solid var(--borde-sutil);
+  border-radius: var(--r-lg);
+  box-shadow: var(--nivel-1);
+  padding: var(--e-4) var(--e-5);
+  display: block;
+}
+.intake-counts10 > div strong {
+  display: block;
+  font-size: var(--t-2xl);
+  line-height: 1.1;
+  color: var(--ink);
+}
+.intake-counts10 > div span {
+  display: block;
+  font-size: var(--t-xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 600;
+  margin-top: var(--e-2);
+}
+.intake-counts10 > div small {
+  display: block;
+  color: var(--muted);
+  font-size: var(--t-xs);
+  margin-top: var(--e-1);
+}
+
+.bandeja-nota10 {
+  padding: 0 var(--e-5) var(--e-3);
+  max-width: 76ch;
+}
+.vistas-deriv10 {
+  margin: 0 var(--e-5) var(--e-4);
+}
+.pad-lista10 {
+  padding: var(--e-3) var(--e-5) var(--e-5);
+}
+.nota-lote10 {
+  margin: calc(var(--e-1) * -1) 0 var(--e-3);
+}
+
+/* Dos decisiones por fila en la bandeja: caben en línea y cada una conserva
+   sus 40px de alto. Apilarlas haría la tabla el doble de larga. */
+.tabla-track9 .rowaction {
+  white-space: nowrap;
+}
+.tabla-track9 .rowaction button {
+  min-height: 36px;
+  padding: var(--e-2) var(--e-3);
+}
+.tabla-track9 .rowaction button + button {
+  margin-left: var(--e-2);
+}
+
+@media (max-width: 760px) {
+  .reglas10 {
+    padding: 0 var(--e-4) var(--e-4);
+  }
+  .reglas10 .campo9 {
+    flex: 1 1 100%;
+  }
+  .bandeja-nota10,
+  .vistas-deriv10 {
+    padding-inline: var(--e-4);
+    margin-inline: 0;
+  }
+  .tabla-track9 .rowaction {
+    white-space: normal;
+  }
+  .tabla-track9 td.rowaction {
+    display: flex;
+    gap: var(--e-2);
+    padding-top: var(--e-3);
+  }
+  .tabla-track9 td.rowaction::before {
+    display: none;
+  }
+  .tabla-track9 .rowaction button {
+    flex: 1;
+    margin-left: 0;
+  }
+  .tabla-track9 .rowaction button + button {
+    margin-left: 0;
+  }
+}
+
+/* Barra de decisión del paso de validación. Va fija al pie porque la evidencia
+   ocupa más de dos pantallas: con el botón solo en la cabecera, confirmar
+   significaba decidir antes de haber leído. */
+.barra-decision10 {
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--e-4);
+  margin-top: var(--e-6);
+  padding: var(--e-4) var(--e-5);
+  background: var(--sup-tarjeta);
+  border: 1px solid var(--borde-sutil);
+  border-radius: var(--r-lg);
+  box-shadow: var(--nivel-3);
+}
+.resumen-decision10 {
+  color: var(--muted);
+  font-size: var(--t-sm);
+}
+.resumen-decision10 b {
+  color: var(--ink);
+}
+.acciones-decision10 {
+  display: flex;
+  gap: var(--e-3);
+  flex-wrap: wrap;
+}
+.acciones-decision10 button {
+  min-height: 44px;
+}
+
+@media (max-width: 760px) {
+  .barra-decision10 {
+    padding: var(--e-4);
+  }
+  .acciones-decision10 {
+    width: 100%;
+  }
+  .acciones-decision10 button {
+    flex: 1;
+  }
+}
+
+/* El encabezado del paso recibe el foco al entrar, para que un lector de
+   pantalla anuncie el cambio de pantalla. Como no es un control, no necesita
+   anillo: el anillo es para decir "aquí actúas", y aquí no se actúa. Los
+   controles de la barra conservan el suyo. */
+#pasoRevision10:focus,
+#tituloCarga11:focus {
+  outline: none;
+}
+/* La barra fija se queda encima del final de la página. Sin este colchón, el
+   último bloque del paso queda tapado y no hay forma de destaparlo. */
+.barra-decision10 ~ *,
+#main:has(.barra-decision10) {
+  scroll-margin-bottom: var(--e-16);
+}
+#main:has(.barra-decision10) #intakeReview > section:last-of-type {
+  padding-bottom: var(--e-10);
+}
+
+/* Los bloques del paso de validación salieron del diálogo: fuera de él, las
+   reglas `#modal .bloque8` ya no aplicaban y quedaban como texto suelto sobre
+   el lienzo. Ahora son tarjetas, como todo lo demás en una vista. */
+#main .bloque8 {
+  display: block;
+  background: var(--sup-tarjeta);
+  border: 1px solid var(--borde-sutil);
+  border-radius: var(--r-lg);
+  box-shadow: var(--nivel-1);
+  padding: var(--e-5);
+  margin-top: var(--e-5);
+}
+#main .bloque8 h3 {
+  margin: 0 0 var(--e-1);
+  font-size: var(--t-lg);
+  color: var(--ink);
+}
+#main .bloque8 .sub {
+  margin: 0 0 var(--e-4);
+  font-size: var(--t-sm);
+  color: var(--muted);
+  max-width: 76ch;
+}
+#main .derivacion8 {
+  border-color: var(--borde-fuerte);
+}
+#main .bloque8 .tabla-reparto8 th {
+  background: var(--sup-suave);
+  border-bottom: 1px solid var(--borde-fuerte);
+  padding: var(--e-2) var(--e-3);
+  font-size: var(--t-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-align: left;
+  white-space: nowrap;
+}
+#main .bloque8 .tabla-reparto8 td {
+  padding: var(--e-3);
+  border-bottom: 1px solid var(--borde-sutil);
+  color: var(--ink);
+}
+
+@media (max-width: 760px) {
+  /* Medido: 21px de desborde a 390px. Cinco columnas no caben, y desplazar la
+     tabla a mano en un móvil es peor que apilarla — misma decisión que en las
+     tablas de la Etapa 8. */
+  #main .bloque8 {
+    padding: var(--e-4);
+  }
+  .tabla-reparto8,
+  .tabla-reparto8 tbody,
+  .tabla-reparto8 tr,
+  .tabla-reparto8 td {
+    display: block;
+    width: 100%;
+  }
+  .tabla-reparto8 thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+  }
+  .tabla-reparto8 tbody tr {
+    padding: var(--e-3) 0 var(--e-4);
+    border-bottom: 1px solid var(--borde-sutil);
+  }
+  #main .bloque8 .tabla-reparto8 td {
+    border-bottom: 0;
+    padding: var(--e-1) 0;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--e-4);
+  }
+  .tabla-reparto8 td[data-col]::before {
+    content: attr(data-col);
+    font-size: var(--t-xs);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  #main .bloque8 .tabla-reparto8 td:first-child {
+    display: block;
+    font-weight: 600;
+    padding-bottom: var(--e-2);
+  }
+  .lista-derivados8 li {
+    flex-wrap: wrap;
+  }
+}
+
+/* =========================================================================
+   Etapa 11 · Carga masiva como sección
+   Tres pasos en una página en vez de tres diálogos encadenados.
+   ========================================================================= */
+
+/* Los pasos son una lista ordenada de verdad: un lector de pantalla oye
+   "lista de 3 elementos" y cuál es el actual. Los ya hechos son botones —se
+   puede volver—; el futuro no, porque todavía no existe. */
+.pasos11 {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--e-2);
+  margin: 0 0 var(--e-6);
+  padding: 0;
+  font-size: var(--t-sm);
+}
+.paso11 {
+  display: flex;
+  align-items: center;
+}
+.paso11 > span,
+.paso11 > button {
+  display: flex;
+  align-items: center;
+  gap: var(--e-2);
+  min-height: 36px;
+  padding: var(--e-1) var(--e-3);
+  border-radius: var(--r-full);
+  border: 1px solid transparent;
+  background: none;
+  font: inherit;
+  color: var(--muted);
+}
+.paso11 > button {
+  cursor: pointer;
+}
+.paso11 > button:hover {
+  background: var(--sup-hundida);
+  color: var(--ink);
+}
+.paso11-n {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--r-full);
+  background: var(--sup-hundida);
+  color: var(--muted);
+  font-size: var(--t-xs);
+  font-weight: 600;
+  font-family: var(--mono);
+}
+.paso11-actual > span {
+  background: var(--sup-tarjeta);
+  border-color: var(--borde-sutil);
+  box-shadow: var(--nivel-1);
+  color: var(--ink);
+  font-weight: 600;
+}
+.paso11-actual .paso11-n {
+  background: var(--green);
+  color: #fff;
+}
+.paso11-hecho > button {
+  color: var(--green-text);
+}
+.paso11-hecho .paso11-n {
+  background: var(--st-cerrado-bg);
+  color: var(--st-cerrado-fg);
+}
+.paso11 + .paso11::before {
+  content: "";
+  width: 16px;
+  height: 1px;
+  background: var(--borde-fuerte);
+  margin-right: var(--e-2);
+}
+
+.bloque-archivo11 {
+  display: flex;
+  flex-wrap: wrap;
+  /* Arriba, no abajo: el recuadro del archivo es alto y alineando por la base
+     el selector de campaña quedaba flotando solo en la esquina. */
+  align-items: flex-start;
+  gap: var(--e-4);
+  padding: 0 var(--e-5) var(--e-4);
+}
+.bloque-archivo11 .filebox {
+  flex: 1 1 320px;
+  min-width: 0;
+  margin: 0;
+}
+.bloque-archivo11 .campo9 {
+  flex: 0 1 260px;
+}
+.bloque-archivo11 .campo9 select {
+  min-height: 44px;
+}
+.descargas11 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--e-4);
+  padding: 0 var(--e-5) var(--e-4);
+}
+.descargas11 p {
+  flex: 1 1 100%;
+  margin: 0;
+}
+.aviso-archivo11 {
+  padding: 0 var(--e-5);
+  min-height: 20px;
+  color: var(--ink);
+  font-size: var(--t-sm);
+}
+.aviso-archivo11.es-error11 {
+  color: var(--red-text);
+  font-weight: 600;
+}
+/* Dentro de una tarjeta la barra se apoya en su borde inferior. */
+.card .barra-decision10 {
+  margin: 0;
+  border-radius: 0 0 var(--r-lg) var(--r-lg);
+  border-width: 1px 0 0;
+  box-shadow: none;
+}
+
+@media (max-width: 760px) {
+  .bloque-archivo11,
+  .descargas11,
+  .aviso-archivo11 {
+    padding-inline: var(--e-4);
+  }
+  .bloque-archivo11 .campo9 {
+    flex: 1 1 100%;
+  }
+  .paso11 + .paso11::before {
+    display: none;
+  }
+  .pasos11 {
+    gap: var(--e-1);
+  }
+}
+
+/* Un primario deshabilitado en verde claro se lee como "casi activo" y el
+   texto blanco encima no llega al contraste mínimo. Deshabilitado es neutro:
+   dice "todavía no", no "pulsa aquí". */
+.acciones-decision10 .primary:disabled,
+.barra-decision10 .primary:disabled {
+  background: var(--sup-hundida);
+  border-color: var(--borde-fuerte);
+  color: var(--muted);
+  cursor: not-allowed;
+  box-shadow: none;
+  opacity: 1;
+}
+
+/* La tabla de resultado por cliente se apila en móvil como las demás; con
+   cinco columnas, desplazarla a mano es peor que leerla en fichas. */
+@media (max-width: 760px) {
+  .intake-table table,
+  .intake-table tbody,
+  .intake-table tr,
+  .intake-table td {
+    display: block;
+    width: 100%;
+  }
+  .intake-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+  }
+  .intake-table tbody tr {
+    padding: var(--e-3) 0 var(--e-4);
+    border-bottom: 1px solid var(--borde-sutil);
+  }
+  .intake-table td {
+    border-bottom: 0;
+    padding: var(--e-1) 0;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--e-4);
+  }
+  .intake-table td[data-col]::before {
+    content: attr(data-col);
+    font-size: var(--t-xs);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--muted);
+    flex: 0 0 auto;
+  }
+  .intake-table td:first-child {
+    display: block;
+    font-weight: 600;
+    padding-bottom: var(--e-2);
+  }
+}
+
+/* =========================================================================
+   Etapa 12 · Stepper, modo de ingreso y campañas del lote
+   ========================================================================= */
+
+/* El stepper anterior emitía el círculo y la etiqueta como hermanos sueltos
+   dentro del <li>, así que la regla del contenedor caía sobre el círculo: 26px
+   de ancho con el relleno del contenedor encima y la etiqueta pegada. Aquí la
+   envoltura `.paso12-caja` va siempre, sea botón o span, y los estados se
+   distinguen por forma además de por color. */
+.pasos12 {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--e-1);
+  margin: 0 0 var(--e-6);
+  padding: 0;
+}
+.paso12 {
+  display: flex;
+  align-items: center;
+}
+.paso12-caja {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--e-2);
+  min-height: 40px;
+  padding: var(--e-1) var(--e-4) var(--e-1) var(--e-2);
+  border: 1px solid transparent;
+  border-radius: var(--r-full);
+  background: none;
+  font: inherit;
+  font-size: var(--t-sm);
+  color: var(--muted);
+  text-align: left;
+}
+button.paso12-caja {
+  cursor: pointer;
+}
+button.paso12-caja:hover {
+  background: var(--sup-hundida);
+  color: var(--ink);
+}
+.paso12-n {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--r-full);
+  background: var(--sup-hundida);
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: var(--t-xs);
+  font-weight: 600;
+  line-height: 1;
+}
+.paso12-t {
+  white-space: nowrap;
+}
+.paso12-actual .paso12-caja {
+  background: var(--sup-tarjeta);
+  border-color: var(--borde-sutil);
+  box-shadow: var(--nivel-1);
+  color: var(--ink);
+  font-weight: 600;
+}
+.paso12-actual .paso12-n {
+  background: var(--green);
+  color: #fff;
+}
+.paso12-hecho .paso12-caja {
+  color: var(--green-text);
+}
+.paso12-hecho .paso12-n {
+  background: var(--st-cerrado-bg);
+  color: var(--st-cerrado-fg);
+}
+.paso12-futuro .paso12-n {
+  border: 1px solid var(--borde-fuerte);
+  background: transparent;
+}
+/* El conector es decorativo: separa, no informa, así que no lleva texto ni
+   entra en el orden de lectura. */
+.paso12 + .paso12::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 20px;
+  height: 1px;
+  background: var(--borde-fuerte);
+  margin: 0 var(--e-1);
+}
+
+/* Control segmentado del tipo de ingreso. Construido como lo define
+   SISTEMA.md —pista hundida, píldora elevada— y no como dos cajas blancas
+   iguales: con dos cajas idénticas, lo único que distinguía la opción activa
+   era el color del subtítulo, y el color solo nunca debe ser la única señal.
+   Aquí la seleccionada se distingue por ALTURA (superficie y sombra) además
+   de por peso y tono, así que sigue leyéndose en escala de grises. */
+.vistas-modo12 {
+  display: inline-flex;
+  gap: var(--e-1);
+  margin: 0 0 var(--e-6);
+  padding: var(--e-1);
+  background: var(--sup-hundida);
+  border-radius: var(--r-md);
+  border: 0;
+}
+.vistas-modo12 button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+  min-width: 148px;
+  min-height: 44px;
+  padding: var(--e-2) var(--e-4);
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  box-shadow: none;
+  color: var(--muted);
+  font-weight: 500;
+  transition:
+    background var(--mov-rapido) var(--curva),
+    box-shadow var(--mov-medio) var(--curva),
+    color var(--mov-rapido) var(--curva);
+}
+.vistas-modo12 button:hover {
+  background: rgba(255, 255, 255, 0.6);
+  color: var(--ink);
+}
+.vistas-modo12 button.active {
+  background: var(--sup-tarjeta);
+  box-shadow: var(--nivel-2);
+  color: var(--ink);
+  font-weight: 600;
+}
+.vistas-modo12 button span {
+  font-size: var(--t-base);
+}
+.vistas-modo12 small {
+  color: var(--muted);
+  font-size: var(--t-xs);
+}
+.vistas-modo12 button.active small {
+  color: var(--green-text);
+}
+
+.form12 {
+  padding: 0 var(--e-5) var(--e-4);
+}
+.ayuda12 {
+  display: block;
+  margin-top: var(--e-1);
+  font-size: var(--t-xs);
+  letter-spacing: 0;
+  text-transform: none;
+  font-weight: 400;
+  color: var(--muted);
+}
+.bloque-archivo11 code,
+.bandeja-nota10 code {
+  font-family: var(--mono);
+  font-size: 0.92em;
+  background: var(--sup-hundida);
+  padding: 0 4px;
+  border-radius: var(--r-xs);
+  color: var(--ink);
+}
+
+@media (max-width: 760px) {
+  .paso12-t {
+    white-space: normal;
+  }
+  .paso12 + .paso12::before {
+    display: none;
+  }
+  .pasos12 {
+    gap: var(--e-1);
+  }
+  .vistas-modo12 {
+    display: flex;
+    width: 100%;
+  }
+  .vistas-modo12 button {
+    min-width: 0;
+    flex: 1;
+  }
+  .form12 {
+    padding-inline: var(--e-4);
+  }
+}
+
+/* Texto solo para lector de pantalla: el stepper dice "Paso 2 de 3, en curso"
+   sin ocupar sitio. Sin esto, quien no ve el círculo verde no sabe en cuál
+   está. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* La tabla de campañas no necesita desplazarse: cabe en escritorio y se apila
+   en móvil. Sin `table-wrap` no hay parada de tabulador que no lleva a nada. */
+.envoltura-campanas12 {
+  padding: 0 var(--e-5) var(--e-5);
+}
+@media (max-width: 760px) {
+  .envoltura-campanas12 {
+    padding: 0 var(--e-4) var(--e-4);
+  }
+  .tabla-campanas12,
+  .tabla-campanas12 tbody,
+  .tabla-campanas12 tr,
+  .tabla-campanas12 td {
+    display: block;
+    width: 100%;
+  }
+  .tabla-campanas12 thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+  }
+  .tabla-campanas12 tbody tr {
+    padding: var(--e-3) 0 var(--e-4);
+    border-bottom: 1px solid var(--borde-sutil);
+  }
+  #main .bloque8 .tabla-campanas12 td,
+  .tabla-campanas12 td {
+    border-bottom: 0;
+    padding: var(--e-1) 0;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--e-4);
+  }
+  .tabla-campanas12 td[data-col]::before {
+    content: attr(data-col);
+    font-size: var(--t-xs);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .tabla-campanas12 td:first-child {
+    display: block;
+    font-weight: 600;
+    padding-bottom: var(--e-2);
+  }
+  .tabla-campanas12 td:first-child::before {
+    display: none;
+  }
+}
+
+/* Desglose de procedencia dentro de la fila de campaña: la cifra manda y la
+   etiqueta acompaña, igual que en el resto de indicadores. */
+.procs12 {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--e-2);
+}
+.proc12 {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--e-1);
+  padding: 2px var(--e-2); /* fuera-de-escala */
+  border-radius: var(--r-xs);
+  font-size: var(--t-xs);
+  white-space: nowrap;
+}
+.proc12-archivo {
+  background: var(--st-cerrado-bg);
+  color: var(--st-cerrado-fg);
+}
+.proc12-defecto {
+  background: var(--st-frio-bg);
+  color: var(--st-frio-fg);
+}
+.proc12-mal {
+  background: var(--st-no-bg);
+  color: var(--st-no-fg);
+  font-weight: 600;
+}
+
+/* Etapa 13 · Aviso de cliente sin campaña y compactado del asistente.
+   El diálogo de tipificación cortaba 107px de contenido a 640px de alto sin
+   avisar. Las tres opciones de respuesta pierden altura para que la decisión
+   quepa entera: es lo único que hay que ver en ese paso. */
+.alert-sincampana13 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--e-3);
+  margin-bottom: var(--e-5);
+}
+.alert-sincampana13 button {
+  margin-left: auto;
+}
+/* Medido a 640px de alto: al asistente de tipificación le sobraban 107px y la
+   cuarta respuesta quedaba cortada sin ninguna señal. En pantallas bajas se
+   recuperan repartidos entre las cuatro opciones (4×14), el stepper (20), la
+   cabecera (17) y los márgenes. No se quita nada: se aprieta. */
+@media (max-height: 700px) {
+  #modal .state-pick9 {
+    padding-block: var(--e-2);
+    min-height: 52px;
+  }
+  #modal .steps9 {
+    margin-block: var(--e-2);
+    transform: scale(0.92);
+    transform-origin: left center;
+  }
+  #modal .modal-head {
+    padding-block: var(--e-3);
+  }
+  #modal .modal-head h2 {
+    font-size: var(--t-lg);
+  }
+  #modal > p.sub {
+    margin-block: var(--e-1);
+  }
+  #modal .states9 {
+    gap: var(--e-2);
+  }
+  /* Los 23px que seguían sobrando tras el primer ajuste, medidos. Se bajan
+     del relleno de cada opción; 44px de alto siguen por encima del mínimo
+     táctil de 24px de la WCAG 2.5.8, así que no se pierde nada. */
+  #modal .state-pick9 {
+    padding-block: var(--e-1);
+    min-height: 44px;
+  }
+  #modal > .textbtn {
+    margin-top: var(--e-1);
+  }
+}
+
+/* Lo comprometido para hoy, en una línea. No es la bandeja de trabajo de
+   vuelta: es el único dato que la bandeja tenía y que no estaba en ninguna
+   otra pantalla. */
+.tira-hoy13 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--e-4);
+  margin-bottom: var(--e-5);
+  padding: var(--e-4) var(--e-5);
+  background: var(--sup-tarjeta);
+  border: 1px solid var(--borde-sutil);
+  border-left: 3px solid var(--green);
+  border-radius: var(--r-lg);
+  box-shadow: var(--nivel-1);
+  color: var(--ink);
+}
+.tira-hoy13 .num {
+  font-size: var(--t-lg);
+}
+.alert-hoy13 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--e-3);
+  margin-bottom: var(--e-5);
+}
+@media (max-width: 760px) {
+  .tira-hoy13 button {
+    width: 100%;
+  }
+}

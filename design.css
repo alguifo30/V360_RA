@@ -1,0 +1,177 @@
+/* ===========================================================================
+   Conecta · Renta Alta — capa de diseño
+   Dirección: "La jornada". Esto no es un tablero de métricas: es una cola de
+   trabajo. Quien lo abre tiene 500 clientes y una pregunta — a quién llamo
+   ahora. Todo lo demás es contexto de esa pregunta.
+   =========================================================================== */
+
+/* --- Tipografía -----------------------------------------------------------
+   IBM Plex, auto-alojada (188KB, sin petición externa, funciona sin red).
+   Tres papeles, no tres gustos:
+   · Condensed para titulares — estrecha e institucional, aguanta nombres
+     largos en una línea sin encoger el cuerpo.
+   · Sans para la interfaz.
+   · Mono para TODA cifra. En una tabla de 500 filas las columnas numéricas
+     se alinean carácter a carácter y se escanean de un vistazo; con una
+     proporcional, no. Es una decisión funcional antes que estética.        */
+
+@font-face { font-family: "Plex Sans"; src: url("fonts/ibm-plex-sans-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Plex Sans"; src: url("fonts/ibm-plex-sans-latin-500-normal.woff2") format("woff2"); font-weight: 500; font-display: swap; }
+@font-face { font-family: "Plex Sans"; src: url("fonts/ibm-plex-sans-latin-600-normal.woff2") format("woff2"); font-weight: 600; font-display: swap; }
+@font-face { font-family: "Plex Sans"; src: url("fonts/ibm-plex-sans-latin-700-normal.woff2") format("woff2"); font-weight: 700; font-display: swap; }
+@font-face { font-family: "Plex Cond"; src: url("fonts/ibm-plex-sans-condensed-latin-600-normal.woff2") format("woff2"); font-weight: 600; font-display: swap; }
+@font-face { font-family: "Plex Cond"; src: url("fonts/ibm-plex-sans-condensed-latin-700-normal.woff2") format("woff2"); font-weight: 700; font-display: swap; }
+@font-face { font-family: "Plex Mono"; src: url("fonts/ibm-plex-mono-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Plex Mono"; src: url("fonts/ibm-plex-mono-latin-500-normal.woff2") format("woff2"); font-weight: 500; font-display: swap; }
+@font-face { font-family: "Plex Mono"; src: url("fonts/ibm-plex-mono-latin-600-normal.woff2") format("woff2"); font-weight: 600; font-display: swap; }
+
+:root {
+  --sans: "Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --display: "Plex Cond", "Plex Sans", system-ui, sans-serif;
+  --mono: "Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  /* Escala: 1.25 desde 14px, redondeada a valores que caen en la rejilla. */
+  --t-xs: 11px;
+  --t-sm: 12.5px;
+  --t-base: 14px;
+  --t-md: 16px;
+  --t-lg: 20px;
+  --t-xl: 26px;
+  --t-2xl: 34px;
+
+  /* Estados, ordenados de frío a cerrado. No son cuatro colores sueltos:
+     son una secuencia, y el tono la refleja. */
+  --st-frio-bg: #eef1f2;   --st-frio-fg: #45565b;
+  --st-curso-bg: #fdf1dd;  --st-curso-fg: #7a5310;
+  --st-cerrado-bg: #e4f2e9; --st-cerrado-fg: #00633a;
+  --st-no-bg: #fbeced;     --st-no-fg: #9a3641;
+
+  --ritmo-lleno: #00803f;
+  --ritmo-vacio: #dde4e3;
+  --ritmo-hoy: #0d2b33;
+}
+
+body,
+button,
+input,
+select,
+textarea {
+  font-family: var(--sans);
+  font-variant-numeric: tabular-nums;
+}
+
+h1, h2, h3, .brand {
+  font-family: var(--display);
+  letter-spacing: -0.015em;
+}
+h1 { font-size: var(--t-2xl); line-height: 1.12; font-weight: 700; }
+h2 { font-size: var(--t-xl); line-height: 1.2; font-weight: 600; }
+h3 { font-size: var(--t-lg); line-height: 1.3; font-weight: 600; }
+
+/* Toda cifra en mono, con las columnas alineadas. */
+.num,
+.stat b,
+.stat-top,
+.big,
+.kpi,
+.pct,
+.money,
+.pagination span,
+.progress-label,
+td .pill.num {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "zero" 1;
+  letter-spacing: -0.02em;
+}
+/* El DNI y el celular bajo cada nombre: mono y un punto más chicos, para que
+   el nombre siga mandando en la fila. */
+.namecell small,
+.rail-client small,
+.dni {
+  font-family: var(--mono);
+  font-size: var(--t-xs);
+  letter-spacing: -0.02em;
+}
+
+/* Las etiquetitas de sección (eyebrow) dejan de ser decoración verde y
+   pasan a ser estructura: marcan de qué es la pantalla. */
+.eyebrow {
+  font-family: var(--mono);
+  font-size: var(--t-xs);
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+/* --- Disciplina del verde -------------------------------------------------
+   Antes el verde estaba en la marca, los botones, los avatares, las píldoras
+   de éxito y las barras a la vez. Un color que está en todo no señala nada.
+   Ahora: marca, acción primaria y "cerrado con venta". Nada más.          */
+
+.avatar {
+  background: #eef1f2;
+  color: #3d4f54;
+  font-family: var(--mono);
+  font-weight: 500;
+  letter-spacing: -0.03em;
+}
+
+.pill {
+  font-size: var(--t-xs);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  border-radius: var(--r-xs);
+  padding: 4px 8px;
+  white-space: nowrap;
+}
+.pill.gray   { background: var(--st-frio-bg);  color: var(--st-frio-fg); }
+.pill.blue   { background: #e8eef7;           color: #2b4f7d; }
+.pill.orange { background: var(--st-curso-bg); color: var(--st-curso-fg); }
+.pill.red    { background: var(--st-no-bg);    color: var(--st-no-fg); }
+
+/* Estados de una gestión: secuencia frío → en curso → cerrado, con el
+   descarte aparte. El glifo delante hace que el estado se lea sin depender
+   del color (WCAG 1.4.1). */
+.pill.estado::before {
+  font-family: var(--mono);
+  margin-right: 4px;
+  font-size: var(--t-xs);
+  vertical-align: 1px;
+}
+.pill.e-frio       { background: var(--st-frio-bg);    color: var(--st-frio-fg); }
+.pill.e-frio::before       { content: "○"; }
+.pill.e-curso      { background: var(--st-curso-bg);   color: var(--st-curso-fg); }
+.pill.e-curso::before      { content: "◐"; }
+.pill.e-cerrado    { background: var(--st-cerrado-bg); color: var(--st-cerrado-fg); }
+.pill.e-cerrado::before    { content: "●"; }
+.pill.e-descartado { background: var(--st-no-bg);      color: var(--st-no-fg); }
+.pill.e-descartado::before { content: "×"; font-size: var(--t-sm); }
+
+/* Prioridad: un rango de tres tramos. Ordinal, no categórico — y en gris,
+   porque el resultado de la gestión es lo que dispara la decisión. */
+.rank {
+  display: inline-flex;
+  align-items: center;
+  /* Dimensión gráfica, no espaciado de maqueta: estas barras miden 3px y su
+     separación forma parte del dibujo. */
+  gap: 2px; /* fuera-de-escala */
+  font-family: var(--mono);
+  font-size: var(--t-xs);
+  font-weight: 500;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.rank i {
+  width: 3px;
+  height: 9px;
+  border-radius: var(--r-xs);
+  background: #cfd8da;
+}
+.rank i:last-of-type { margin-right: 4px; }
+.rank.r-3 i            { background: #0d2b33; }
+.rank.r-2 i:nth-of-type(-n + 2) { background: #7d9296; }
+.rank.r-1 i:nth-of-type(1)      { background: #a9b6b9; }
+.rank.r-3 { color: #0d2b33; font-weight: 600; }
+
